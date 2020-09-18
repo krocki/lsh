@@ -14,6 +14,9 @@ import time
 
 np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
 
+def cosine_sim(v,w):
+  return np.dot(v,w)/(np.linalg.norm(v) * np.linalg.norm(w))
+
 def debug_print(x, s):
   print('\n-----')
   print(s + '.shape')
@@ -23,6 +26,16 @@ def debug_print(x, s):
   # indentation
   print("\t" + str(x).replace('\n','\n\t'))
   print('=====')
+
+def lsh_hyperplane(x, h):
+
+  p = np.random.randn(x.shape[-1], h).astype(np.float32)
+  projections = np.dot(x, p)
+
+  debug_print(p, 'p')
+  debug_print(projections, 'projections')
+
+  return (projections >= 0).astype(np.int32)
 
 def lsh_angular(x, n, h):
 
@@ -54,20 +67,34 @@ def lsh_angular(x, n, h):
   buckets = np.argmax(rotated_vecs, axis=-1).astype(np.int32)
   debug_print(buckets, 'buckets')
 
-  return r_rotations
+  return buckets
 
 if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(description='')
-  parser.add_argument('-N', type=int, default=5, help='input size')
-  parser.add_argument('-d', type=int, default=8, help='input dim')
-  parser.add_argument('-I', type=int, default=4, help='number of buckets in')
-  parser.add_argument('-O', type=int, default=3, help='number of buckets')
+  parser.add_argument('-N', type=int, default=5,  help='input size')
+  parser.add_argument('-d', type=int, default=8,  help='input dim')
+  parser.add_argument('-I', type=int, default=4,  help='number of buckets in')
+  parser.add_argument('-O', type=int, default=3,  help='number of buckets')
 
   args = parser.parse_args()
   N, d, I, O = args.N, args.d, args.I, args.O
 
-  vecs = np.random.randn(N, d)
+  #vecs = np.random.randn(N, d)
+  vecs = np.array([
+    [ 1, 0, 0, 1, 1, 1, 0, 0],
+    [ 1, 0, 0, 1, 1, 0, 0, 0],
+    [ 0, 0, 1, 0, 0, 0, 0, 0],
+    [ 0, 1, 1, 1, 0, 0, 0, 0],
+    [ 0, 1, 1, 1, 1, 0, 0, 0]
+  ])
 
-  hashes = lsh_angular(vecs, I, O)
+  hashes = lsh_angular(vecs, I, O).T
+  debug_print(hashes, 'hashes')
 
+  sim = np.array([cosine_sim(v, w) for v in vecs for w in vecs]).reshape(N,N)
+  debug_print(sim, 'cosine sim')
+
+  #print('hyperplane')
+  #hashes0 = lsh_hyperplane(vecs, O)
+  #debug_print(hashes0, 'hashes hyperplane')
