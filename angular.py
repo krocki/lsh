@@ -37,18 +37,19 @@ def lsh_hyperplane(x, h):
 
   return (projections >= 0).astype(np.int32)
 
+# x: inputs
+# b: number of buckets
+# h: number of hashes
+
 def lsh_angular(x, b, h):
 
-  print('lsh_angular():\nx={},\nb={}, h={}'.format(x, b, h))
+  assert b % 2 == 0
   rotations_shape = (x.shape[-1], h, b // 2)
 
-  print('rotations_shape')
-  print(rotations_shape)
-  debug_print(x, 'x')
-
   rr = np.random.randn(*rotations_shape).astype(np.float32)
-  rr = np.reshape(rr, [-1, h * b // 2])
   debug_print(rr, 'rr')
+  rr = np.reshape(rr, [-1, h * b // 2])
+  debug_print(rr, 'rr_reshaped')
 
   rv = np.dot(x, rr)
   debug_print(rv, 'rv')
@@ -67,26 +68,39 @@ def lsh_angular(x, b, h):
 
   return buckets
 
+def matching_buckets(x, y):
+  return np.sum(x==y)
+
 if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(description='')
-  parser.add_argument('-N', type=int, default=3,  help='input size')
-  parser.add_argument('-D', type=int, default=2,  help='input dim')
+  parser.add_argument('-N', type=int, default=3,  help='number of input vectors')
+  parser.add_argument('-D', type=int, default=2,  help='input inner dim')
   parser.add_argument('-H', type=int, default=4,  help='number of hashes')
   parser.add_argument('-B', type=int, default=4,  help='number of buckets')
 
   args = parser.parse_args()
   N, D, H, B = args.N, args.D, args.H, args.B
 
-  vecs = np.random.uniform(size=(N, D)).astype(np.float32)
+  keys = np.random.uniform(size=(N, D)).astype(np.float32)
+  query = np.random.uniform(size=(1, D)).astype(np.float32)
 
+  vecs = np.concatenate([keys, query])
   hashes = lsh_angular(vecs, B, H).T
-  debug_print(hashes, 'hashes')
+  h_keys, h_query = hashes[:-1], hashes[-1]
+  debug_print(h_keys, 'h_keys')
+  debug_print(h_query, 'h_query')
 
-  sim = np.array([cosine_sim(v, w) for v in vecs for w in vecs]).reshape(N,N)
-  debug_print(sim, 'cosine sim')
+  sim = np.array([cosine_sim(query, v) for v in keys])
 
-  debug_print(vecs, 'x')
+  debug_print(keys, 'keys')
+  debug_print(query, 'query')
   #print('hyperplane')
   #hashes0 = lsh_hyperplane(vecs, O)
   #debug_print(hashes0, 'hashes hyperplane')
+  scores = np.expand_dims(np.array([matching_buckets(x, h_query) for x in h_keys]), axis=1)
+
+  debug_print(scores, 'scores')
+  debug_print(sim, 'cosine sim')
+  debug_print(np.concatenate([sim.T, scores.T]).T, 'csim, hsim')
+
