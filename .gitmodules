@@ -1,0 +1,3 @@
+[submodule "MLP-Python"]
+	path = MLP-Python
+	url = git@github.com:krocki/MLP-Python
