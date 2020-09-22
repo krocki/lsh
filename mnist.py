@@ -83,15 +83,15 @@ def show_imgs(xs, filename=None, labels=None):
 if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(description='')
-  parser.add_argument('-b', '--batchsize', type=int, default=16, help='# of keys')
-  parser.add_argument('-q', '--queries', type=int, default=16, help='# of queries')
-  parser.add_argument('-n', '--disable-norm', action='store_true',  help='dont normalize vectors')
+  parser.add_argument('-nk', type=int, default=16, help='# of keys')
+  parser.add_argument('-nq', type=int, default=16, help='# of queries')
+  parser.add_argument('-d', '--disable-norm', action='store_true',  help='dont normalize vectors')
   parser.add_argument('-r', '--rand', action='store_true',  help='random vectors')
   parser.add_argument('-s', '--save', action='store_true',  help='save imgs')
   args = parser.parse_args()
 
-  nk = args.batchsize
-  nq = args.queries
+  nk = args.nk
+  nq = args.nq
   save_png = args.save
   normalize_inputs = not args.disable_norm
 
@@ -101,8 +101,8 @@ if __name__ == "__main__":
   f.close()
 
   if args.rand:
-    ki = np.random.randint(0, high=x.shape[0], size=nk)
-    qi = np.random.randint(0, high=x.shape[0], size=nq)
+    ki = np.random.randint(0, high=train[0].shape[0], size=nk)
+    qi = np.random.randint(0, high=train[0].shape[0], size=nq)
   else:
     ki = np.arange(nk)
     qi = np.arange(90, 90+nq) # some overlap
@@ -154,23 +154,20 @@ if __name__ == "__main__":
 
   print('dot(Q,K.T): t={:6.3f} ms'.format(1000.0 * (t1-t0)))
 
+  # softmax
+  beta = 1
+  m0 = np.expand_dims(maxvals[:, -1], axis=1)
+  p0 = np.exp(beta * (Z - m0))
+  s0 = np.sum(p0, axis=1)
+  ## normalized
+  ps = p0 / np.expand_dims(s0, axis=1)
+
   if save_png:
     save_arr(z, 'z_sorted.png')
     save_arr(Z, 'Z.png')
+    save_arr(p0, 'p0.png')
+    save_arr(ps, 'ps.png')
 
-  # softmax
-  # [nq, ] -> [nq, 1]
-  #m0 = np.expand_dims(maxvals[:, -1], axis=1)
-  #z0 = Z - m0 # [nq, nk] - [nq, 1]
-  #p0 = np.exp(z0)
-  #s0 = np.sum(p0, axis=1)
-  ## [nq, ] -> [nq, 1]
-  #s0 = np.expand_dims(s0, axis=1)
-  ## normalized
-  #ps = p0 / s0
-
-  #debug_print(m0, 'm0')
-  #debug_print(z0, 'z0')
-  #debug_print(p0, 'p0')
-  #debug_print(s0, 's0')
-  #debug_print(ps, 'ps')
+  debug_print(m0, 'm0')
+  debug_print(s0, 's0')
+  debug_print(ps, 'ps')
