@@ -8,7 +8,7 @@ import pickle, gzip
 import numpy as np
 import math
 import time
-
+import argparse
 import matplotlib
 
 # save to file
@@ -32,6 +32,10 @@ def random_batch(x, b):
   r = np.random.randint(0, high=x.shape[0], size=B)
   # returns x.shape [b, 784]
   return x[r, :], r
+
+def save_arr(a, filename):
+  plt.matshow(a)
+  plt.savefig(filename)
 
 def show_imgs(xs, filename=None, labels=None):
 
@@ -78,20 +82,31 @@ def show_imgs(xs, filename=None, labels=None):
 
 if __name__ == "__main__":
 
-  B = 100
-  N = 16
-  save_png = True
-  normalize_inputs = True
+  parser = argparse.ArgumentParser(description='')
+  parser.add_argument('-b', '--batchsize', type=int, default=16, help='# of keys')
+  parser.add_argument('-q', '--queries', type=int, default=16, help='# of queries')
+  parser.add_argument('-n', '--disable-norm', action='store_true',  help='dont normalize vectors')
+  parser.add_argument('-r', '--rand', action='store_true',  help='random vectors')
+  parser.add_argument('-s', '--save', action='store_true',  help='save imgs')
+  args = parser.parse_args()
+
+  nk = args.batchsize
+  nq = args.queries
+  save_png = args.save
+  normalize_inputs = not args.disable_norm
 
   f = gzip.open('./MLP-Python/mnist.pkl.gz', 'rb')
   train, valid, test = pickle.load(
     f, encoding='bytes')
   f.close()
 
-  ki = np.arange(B)
-  qi = np.arange(90, 90+N)
+  if args.rand:
+    ki = np.random.randint(0, high=x.shape[0], size=nk)
+    qi = np.random.randint(0, high=x.shape[0], size=nq)
+  else:
+    ki = np.arange(nk)
+    qi = np.arange(90, 90+nq) # some overlap
 
-  #x, r = random_batch(train[0], B)
   K = train[0][ki, :].astype(np.float32)
   Q = train[0][qi, :].astype(np.float32)
 
@@ -110,16 +125,9 @@ if __name__ == "__main__":
     for i in range(K.shape[0]):
       K[i] = normalize(K[i])
 
-  #for i in range(B):
-  #  print('i={}, norm(i)={:6.3f}, '
-  #    .format(i, norm(xs[i])) +
-  #    'dist(j, {})={:6.3f}, '
-  #    .format(i, distance(im, xs[i])) +
-  #    'cosine(j, {})={:6.3f}'
-  #    .format(i, cosine(im, xs[i])))
-
   np.set_printoptions(
-    formatter={'float': '{: 0.2f}'.format})
+    formatter={'float': '{: 0.3f}'.format},
+    threshold=np.inf)
 
   # Q = [num_queries, d]
   # K = [num_keys, d]
@@ -132,7 +140,6 @@ if __name__ == "__main__":
   t1 = time.time()
 
   debug_print(Z, 'Z')
-  print('t={:6.3f} ms'.format(1000.0 * (t1-t0)))
 
   idxs = np.argsort(Z, axis=1)
 
@@ -143,4 +150,27 @@ if __name__ == "__main__":
   maxvals, maxidxs = z[:, -top_k:], idxs[:, -top_k:]
 
   print(maxidxs)
-  print(maxvals)
+  debug_print(maxvals, 'maxvals')
+
+  print('dot(Q,K.T): t={:6.3f} ms'.format(1000.0 * (t1-t0)))
+
+  if save_png:
+    save_arr(z, 'z_sorted.png')
+    save_arr(Z, 'Z.png')
+
+  # softmax
+  # [nq, ] -> [nq, 1]
+  #m0 = np.expand_dims(maxvals[:, -1], axis=1)
+  #z0 = Z - m0 # [nq, nk] - [nq, 1]
+  #p0 = np.exp(z0)
+  #s0 = np.sum(p0, axis=1)
+  ## [nq, ] -> [nq, 1]
+  #s0 = np.expand_dims(s0, axis=1)
+  ## normalized
+  #ps = p0 / s0
+
+  #debug_print(m0, 'm0')
+  #debug_print(z0, 'z0')
+  #debug_print(p0, 'p0')
+  #debug_print(s0, 's0')
+  #debug_print(ps, 'ps')
